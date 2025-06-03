@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Senhas - ETEC Adolpho Arruda Mello</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.32/Tone.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Professional Blue & Gray -->
+    <!-- Application Structure Plan: Single-view app. Header, main password display, keyboard controls, digital clock (HH:MM:SS), detailed call history (HH:MM, fixed min-height), institutional video section, and footer. Streamlined for keyboard operation with enhanced history, video, and stable layout. -->
+    <!-- Visualization & Content Choices: 1. Current Ticket: Large text. Interaction: Key press. Justification: Clarity. 2. Ticket Type: Prefix. Justification: Distinction. 3. Controls: Keyboard shortcuts. Justification: Efficiency. 4. Time: Digital clock (HH:MM:SS). Justification: Context. 5. Call History: List of last 5 tickets with timestamps (HH:MM), fixed min-height. Justification: Detailed tracking. 6. Institutional Video: Video player. Justification: Institutional promotion. 7. Contact: Footer. Justification: Info access. Sound: Tone.js. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; 
+            color: #1e293b; 
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .main-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem; 
+        }
+        .senha-display {
+            font-size: clamp(4rem, 15vw, 12rem); 
+            font-weight: 900; 
+            line-height: 1;
+            color: #2563eb; 
+        }
+        .clock-new-display {
+            font-family: 'Orbitron', sans-serif; 
+            font-size: 2.5rem; 
+            color: #1e3a8a; 
+            background-color: #e0e7ff; 
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: inset 0 2px 4px 0 rgba(0,0,0,0.06);
+            letter-spacing: 0.05em;
+            min-width: 220px; /* Adjusted back for HH:MM:SS */
+            text-align: center;
+        }
+        .header-bar {
+            background-color: #1e3a8a; 
+            color: white;
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.75rem; 
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); 
+        }
+        .keyboard-hint {
+            background-color: #e2e8f0; 
+            color: #475569; 
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border: 1px solid #cbd5e1; 
+        }
+        #toast-message {
+            position: fixed;
+            bottom: 70px; 
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #2563eb; 
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            font-size: 0.9rem;
+        }
+        #toast-message.show {
+            opacity: 1;
+        }
+        .app-footer {
+            background-color: #1e293b; 
+            color: #e2e8f0; 
+            padding: 1rem; 
+            text-align: center;
+            font-size: 0.875rem; 
+            width: 100%;
+        }
+        .app-footer a {
+            color: #93c5fd; 
+            text-decoration: none;
+        }
+        .app-footer a:hover {
+            text-decoration: underline;
+        }
+        #historicoSenhasContainer {
+             min-height: 10rem; 
+        }
+        #historicoSenhasLista li {
+            display: flex;
+            align-items: center; 
+            padding: 0.35rem 0; 
+            border-bottom: 1px dashed #e2e8f0; 
+        }
+        #historicoSenhasLista li:last-child {
+            border-bottom: none;
+        }
+        #historicoSenhasLista .senha-historico-numero {
+            font-weight: 500;
+            color: #334155; 
+            margin-right: 0.75rem; 
+        }
+        #historicoSenhasLista .senha-historico-hora {
+            color: #64748b; 
+            font-size: 0.85em; 
+        }
+        #videoInstitucionalContainer {
+            background-color: #000; /* Black background for video area */
+            border-radius: 0.5rem; /* rounded-lg */
+            overflow: hidden; /* Ensures video corners are rounded if video itself isn't */
+        }
+        #videoInstitucional {
+            aspect-ratio: 16 / 9; /* Common video aspect ratio */
+            object-fit: cover; /* Cover the area without stretching */
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="w-full max-w-7xl">
+            <!-- Header -->
+            <header class="header-bar p-4 rounded-t-xl text-center mb-1">
+                <div class="flex items-center justify-center space-x-6">
+                    <img src="imagens/Logo_Etec.png" alt="Logo ETEC" class="h-16 w-16 rounded-md bg-white">
+                    <div>
+                        <h1 class="text-2xl font-bold">ETEC Adolpho Arruda Mello</h1>
+                        <p class="text-sm opacity-90">Matrículas 2º Semestre <strong>2025</strong></p>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content Card -->
+            <main class="card p-6 md:p-10 w-full">
+                <!-- Senha Atual Display -->
+                <section class="text-center mb-8 md:mb-12">
+                    <p class="text-xl font-medium text-slate-500 mb-1">SENHA ATUAL</p>
+                    <div id="senhaAtualNumero" class="senha-display">0000</div>
+                </section>
+
+                <!-- Instruções de Teclado -->
+                <section class="text-center mb-8 md:mb-12">
+                    <p class="text-slate-600">Use o teclado para operar:</p>
+                    <div class="flex justify-center space-x-3 mt-2">
+                        <span class="keyboard-hint">N</span> <span class="text-slate-500">- Chamar Normal</span>
+                        <span class="keyboard-hint">P</span> <span class="text-slate-500">- Chamar Prioritária</span>
+                        <span class="keyboard-hint">Q</span> <span class="text-slate-500">- Reiniciar Contagem</span>
+                    </div>
+                </section>
+
+
+                <!-- Histórico, Vídeo e Relógio -->
+                <section class="grid grid-cols-1 md:grid-cols-3 gap-x-0 gap-y-8 items-start">
+                    <!-- Coluna 1: Histórico -->
+                    <div id="historicoSenhasContainer" class="text-center md:text-left">
+                        <h3 class="text-lg font-semibold mb-2 text-slate-700">ÚLTIMAS 5 CHAMADAS:</h3>
+                        <ul id="historicoSenhasLista" class="space-y-1 text-sm text-slate-600 max-h-48 overflow-y-auto">
+                            <li id="historicoPlaceholder" class="italic text-slate-400">Nenhuma senha chamada ainda.</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Coluna 2: Vídeo -->
+                    <!-- Video Player -->
+                    <div id="videoInstitucionalContainer" class="w-full max-w-md mx-auto md:mx-0 shadow-lg">
+                        <video id="videoInstitucional" class="w-full rounded-lg" loop muted playsinline autoplay poster="https://placehold.co/1600x900/e2e8f0/475569?text=V%C3%ADdeo+Institucional">
+                            <source src="videos/video.mp4" type="video/mp4">
+                            Seu navegador não suporta o elemento de vídeo.
+                        </video>
+                    </div>
+                    <!-- Coluna 3: Relógio -->
+                    <div class="flex justify-center md:justify-end w-full">
+                        <div id="clockDisplay" class="clock-new-display">00:00:00</div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+    <div id="toast-message">Contagem reiniciada!</div>
+
+    <footer class="app-footer">
+        <p>
+            Instagram: <a href="https://instagram.com/etecarrudamello" target="_blank" rel="noopener noreferrer">@etecarrudamello</a> | 
+            Contato (Telefone/WhatsApp): <a href="https://wa.me/551839163779" target="_blank" rel="noopener noreferrer">18 3916-3779</a>
+        </p>
+        <p class="mt-1 text-xs opacity-75">&copy; 2025 ETEC Adolpho Arruda Mello. Todos os direitos reservados.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const displaySenhaAtual = document.getElementById('senhaAtualNumero');
+            const clockDisplay = document.getElementById('clockDisplay');
+            const historicoSenhasLista = document.getElementById('historicoSenhasLista');
+            // const historicoPlaceholder = document.getElementById('historicoPlaceholder'); // No longer needed directly if recreated
+            const historicoSenhasContainer = document.getElementById('historicoSenhasContainer'); 
+            const toastMessage = document.getElementById('toast-message');
+            const videoPlayer = document.getElementById('videoInstitucional');
+
+            let senhaNormal = parseInt(localStorage.getItem('senhaNormal')) || 0;
+            let senhaPrioridade = parseInt(localStorage.getItem('senhaPrioridade')) || 0;
+            let historicoSenhas = JSON.parse(localStorage.getItem('historicoSenhas')) || [];
+
+            const MAX_HISTORICO = 5;
+
+            const synth = new Tone.Synth({
+                oscillator: { type: 'sine' },
+                envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 0.3 }
+            }).toDestination();
+
+            function showToast(message) {
+                toastMessage.textContent = message;
+                toastMessage.classList.add('show');
+                setTimeout(() => {
+                    toastMessage.classList.remove('show');
+                }, 3000);
+            }
+
+            function playSound() {
+                if (typeof Tone !== 'undefined' && synth) {
+                    try {
+                        Tone.start(); 
+                        synth.triggerAttackRelease("C5", "8n", Tone.now());
+                        synth.triggerAttackRelease("G5", "8n", Tone.now() + 0.2);
+                    } catch (error) {
+                        console.error("Error playing sound with Tone.js:", error);
+                    }
+                }
+            }
+
+            function formatarNumeroSenha(num, prefix = '') {
+                return prefix + String(num).padStart(4, '0');
+            }
+            
+            function formatarHora(date, comSegundos = false) {
+                const horas = String(date.getHours()).padStart(2, '0');
+                const minutos = String(date.getMinutes()).padStart(2, '0');
+                if (comSegundos) {
+                    const segundos = String(date.getSeconds()).padStart(2, '0');
+                    return `${horas}:${minutos}:${segundos}`;
+                }
+                return `${horas}:${minutos}`;
+            }
+
+            function atualizarDisplayHistorico() {
+                historicoSenhasLista.innerHTML = ''; 
+                if (historicoSenhas.length === 0) {
+                    const liPlaceholder = document.createElement('li');
+                    liPlaceholder.id = 'historicoPlaceholder'; // Re-assign id if needed for styling
+                    liPlaceholder.className = 'italic text-slate-400';
+                    liPlaceholder.textContent = 'Nenhuma senha chamada ainda.';
+                    historicoSenhasLista.appendChild(liPlaceholder);
+
+                } else {
+                    historicoSenhas.slice().reverse().forEach(item => {
+                        const li = document.createElement('li');
+                        const spanSenha = document.createElement('span');
+                        spanSenha.className = 'senha-historico-numero';
+                        spanSenha.textContent = item.senha;
+                        
+                        const spanHora = document.createElement('span');
+                        spanHora.className = 'senha-historico-hora';
+                        spanHora.textContent = `(${item.horario})`; 
+                        
+                        li.appendChild(spanSenha);
+                        li.appendChild(spanHora);
+                        historicoSenhasLista.appendChild(li);
+                    });
+                }
+            }
+            
+            function adicionarAoHistorico(senhaChamada) {
+                const agora = new Date();
+                const novaEntrada = {
+                    senha: senhaChamada,
+                    horario: formatarHora(agora, false) 
+                };
+                historicoSenhas.push(novaEntrada);
+                if (historicoSenhas.length > MAX_HISTORICO) {
+                    historicoSenhas.shift(); 
+                }
+                localStorage.setItem('historicoSenhas', JSON.stringify(historicoSenhas));
+                atualizarDisplayHistorico();
+            }
+
+
+            function atualizarDisplaySenhaPrincipal(numero, tipo) {
+                let senhaFormatada;
+                if (tipo === 'normal') {
+                    senhaFormatada = formatarNumeroSenha(numero, 'N');
+                } else if (tipo === 'prioridade') {
+                    senhaFormatada = formatarNumeroSenha(numero, 'P');
+                } else { 
+                     senhaFormatada = String(numero).padStart(4, '0');
+                }
+                displaySenhaAtual.textContent = senhaFormatada;
+                if (tipo) { 
+                    adicionarAoHistorico(senhaFormatada);
+                }
+            }
+            
+            function carregarEstadoInicial() {
+                const lastCalledSenhaNum = localStorage.getItem('lastCalledSenhaNum');
+                const lastCalledType = localStorage.getItem('lastCalledType');
+
+                if (lastCalledSenhaNum && lastCalledType) {
+                     if (lastCalledType === 'normal') displaySenhaAtual.textContent = formatarNumeroSenha(parseInt(lastCalledSenhaNum), 'N');
+                     else if (lastCalledType === 'prioridade') displaySenhaAtual.textContent = formatarNumeroSenha(parseInt(lastCalledSenhaNum), 'P');
+                     else displaySenhaAtual.textContent = '0000';
+                } else {
+                     displaySenhaAtual.textContent = '0000';
+                }
+                atualizarDisplayHistorico();
+
+                // Attempt to play video, user gesture might be required by browser
+                if (videoPlayer) {
+                    videoPlayer.play().catch(error => {
+                        console.info("Autoplay do vídeo bloqueado pelo navegador, requer interação do usuário.", error);
+                        // Optionally, show a play button or message to the user
+                    });
+                }
+            }
+
+            function chamarSenhaNormal() {
+                senhaNormal++;
+                localStorage.setItem('senhaNormal', senhaNormal);
+                localStorage.setItem('lastCalledSenhaNum', senhaNormal);
+                localStorage.setItem('lastCalledType', 'normal');
+                atualizarDisplaySenhaPrincipal(senhaNormal, 'normal');
+                playSound();
+            }
+
+            function chamarSenhaPrioritaria() {
+                senhaPrioridade++;
+                localStorage.setItem('senhaPrioridade', senhaPrioridade);
+                localStorage.setItem('lastCalledSenhaNum', senhaPrioridade);
+                localStorage.setItem('lastCalledType', 'prioridade');
+                atualizarDisplaySenhaPrincipal(senhaPrioridade, 'prioridade');
+                playSound();
+            }
+
+            function reiniciarContagem() {
+                senhaNormal = 0;
+                senhaPrioridade = 0;
+                historicoSenhas = [];
+                localStorage.setItem('senhaNormal', senhaNormal);
+                localStorage.setItem('senhaPrioridade', senhaPrioridade);
+                localStorage.removeItem('lastCalledSenhaNum');
+                localStorage.removeItem('lastCalledType');
+                localStorage.setItem('historicoSenhas', JSON.stringify(historicoSenhas));
+                
+                atualizarDisplaySenhaPrincipal('0000', null);
+                atualizarDisplayHistorico();
+                showToast('Contagem de senhas reiniciada!');
+            }
+
+            document.addEventListener('keydown', (event) => {
+                const key = event.key.toUpperCase();
+                if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
+                    return; 
+                }
+
+                if (key === 'N') {
+                    chamarSenhaNormal();
+                } else if (key === 'P') {
+                    chamarSenhaPrioritaria();
+                } else if (key === 'Q') {
+                    reiniciarContagem(); 
+                }
+            });
+
+            function atualizarRelogioPrincipal() {
+                const agora = new Date();
+                clockDisplay.textContent = formatarHora(agora, true); 
+            }
+
+            setInterval(atualizarRelogioPrincipal, 1000); 
+            atualizarRelogioPrincipal(); 
+            carregarEstadoInicial();
+        });
+    </script></body>
+</html>
